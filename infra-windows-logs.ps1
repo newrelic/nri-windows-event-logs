@@ -56,6 +56,6 @@ $payload = @{
     metrics = @($events)
     inventory = @{}
     events = @()
-}
+} | ConvertTo-Json -Compress
 
-Write-Output $payload | ConvertTo-Json -Compress
+Write-Output ($payload -replace '"\\\/Date\((\d+)\)\\\/\"' ,'$1')
