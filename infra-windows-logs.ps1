@@ -8,6 +8,7 @@
 ###
 # Parameters (a.k.a. Command Line Arguments)
 # Usage: -LogName "LogName"
+# Required - throw if missing
 ###
 
 param (
@@ -20,11 +21,17 @@ param (
 # to use as -After argument of Get-Date in next pull. On first run we use current date.
 # On subsequent runs it will use last date written to file.
 #
-# The Infrastructure Integration pulls must occur over 1 minute apart as
-# the Date object is only one minute granularity.
+# Uses LogName param to create timestamp for each LogName
 ###
 
 $LAST_PULL_TIMESTAMP_FILE = "./last-pull-timestamp-$LogName.txt"
+
+
+###
+# If timestamp file exists, use it; otherwise,
+# set timestamp to 15 minutes ago to pull some data on
+# first run.
+###
 
 if(Test-Path $LAST_PULL_TIMESTAMP_FILE -PathType Leaf) {
 
@@ -37,11 +44,21 @@ if(Test-Path $LAST_PULL_TIMESTAMP_FILE -PathType Leaf) {
 
 }
 
+###
+# Write timestamp to file to pull on next run.
+###
 Set-Content -Path $LAST_PULL_TIMESTAMP_FILE -Value (Get-Date -Format o)
 
+###
+# Pull events using -After param with timestamp
+###
 $events = Get-EventLog -LogName $LogName -After $timestamp;
 
 
+###
+# Add required 'event_type' to objects from Get-EventLog.
+# Add optional 'log_name' value to object.
+###
 $events.ForEach({
 
     Add-Member -NotePropertyName 'event_type' -NotePropertyValue 'Windows Event Logs' -InputObject $_;
@@ -49,6 +66,11 @@ $events.ForEach({
 
 });
 
+###
+# Create hash table in required format for Infrastructure, populated
+# with event object log data and pipe to ConvertTo-Json with
+# -Compress argument required in order for Infrastructure to consume.
+###
 $payload = @{
     name = "com.newrelic.windows.eventlog"
     integration_version = "0.1.0"
@@ -58,4 +80,11 @@ $payload = @{
     events = @()
 } | ConvertTo-Json -Compress
 
+
+###
+# Output json string created above with regex to normalize date strings
+# post json string conversion. Alternatively, you could create a
+# new -NotePropertyName with the proper date string and remove
+# the original object property. 
+###
 Write-Output ($payload -replace '"\\\/Date\((\d+)\)\\\/\"' ,'$1')
