@@ -1,20 +1,14 @@
-###
-# The following command is required for testing:
-#
-# [System.Diagnostics.EventLog]::CreateEventSource("New Relic","Application")
-###
-
 
 ###
-# Parameters (a.k.a. Command Line Arguments)
-# Usage: -LogName "LogName"
-# Required - throw if missing
+# Parameters
+# -LogName      The name of the event log to gather events from.  Ex: System, Appication, etc. (Required)
+# -EventIds     An optional, colon delimited, list of event ids to gather.
 ###
 
 param (
-    [string]$LogName=$(throw "-LogName is mandatory")
+    [string]$LogName=$(throw "-LogName is mandatory"),
+    [string]$EventIds
 )
-
 
 ###
 # Logic to handle getting new log entries by saving current date to file
@@ -33,14 +27,14 @@ $LAST_PULL_TIMESTAMP_FILE = "./last-pull-timestamp-$LogName.txt"
 # first run.
 ###
 
-if(Test-Path $LAST_PULL_TIMESTAMP_FILE -PathType Leaf) {
+if (Test-Path $LAST_PULL_TIMESTAMP_FILE -PathType Leaf) {
 
-    $timestamp = Get-Content -Path $LAST_PULL_TIMESTAMP_FILE -Encoding String | Out-String;
-    $timestamp = [DateTime] $timestamp.ToString();
+    $timestamp = Get-Content -Path $LAST_PULL_TIMESTAMP_FILE -Encoding String | Out-String
+    $timestamp = [DateTime] $timestamp.ToString()
 
-}else{
+} else{
 
-    $timestamp = (Get-Date).AddMinutes(-15);
+    $timestamp = (Get-Date).AddMinutes(-240)
 
 }
 
@@ -52,17 +46,36 @@ Set-Content -Path $LAST_PULL_TIMESTAMP_FILE -Value (Get-Date -Format o)
 ###
 # Pull events using -After param with timestamp
 ###
-$events = Get-EventLog -LogName $LogName -After $timestamp;
+$events = Get-EventLog -LogName $LogName -After $timestamp
 
+###
+# If event ids were given, filter to keep only the events having an id in our event id list.
+###
+if ($EventIds) {
+    $eventIdStrings = $EventIds.Split(":")
+    $eventIdNums = @()
+    foreach ($eventId in $eventIdStrings) {
+        $eventIdNums += [convert]::ToInt32($eventId)
+    }
+
+    # Iterate over the events and copy only those we want to keep into the filteredEvents.
+    $filteredEvents = @()
+    foreach ($event in $events) {
+        if (-Not ($eventIdNums -Contains $event.EventID)) {
+            continue
+        }
+        $filteredEvents += $event
+    }
+    $events = $filteredEvents
+}
 
 ###
 # Add required 'event_type' to objects from Get-EventLog.
 # Add optional 'log_name' value to object.
 ###
 $events.ForEach({
-
-    Add-Member -NotePropertyName 'event_type' -NotePropertyValue 'Windows Event Logs' -InputObject $_;
-    Add-Member -NotePropertyName 'log_name' -NotePropertyValue $LogName -InputObject $_;
+    Add-Member -NotePropertyName 'event_type' -NotePropertyValue 'Windows Event Logs' -InputObject $_
+    Add-Member -NotePropertyName 'log_name' -NotePropertyValue $LogName -InputObject $_
 
 });
 
