@@ -7,9 +7,7 @@
 
 ###
 # Parameters (a.k.a. Command Line Arguments)
-# Usage: -LogName "LogName"
-# Required - throw if missing
-# Parameters
+# Usage: -LogName "LogName" -EventIds 4608:4609:4946
 # -LogName      The name of the event log to gather events from.  Ex: System, Appication, etc. (Required)
 # -EventIds     An optional, colon delimited, list of event ids to gather.
 ###
