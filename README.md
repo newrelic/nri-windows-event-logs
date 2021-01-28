@@ -1,3 +1,7 @@
+# Deprecation notice
+Collection of event log channels is now part of core New Relic Infrastructure Agent:
+https://docs.newrelic.com/docs/logs/enable-log-management-new-relic/enable-log-monitoring-new-relic/forward-your-logs-using-infrastructure-agent#winlog
+
 # Windows Event Log Integration
 
 * Pipes Windows PowerShell `Get-EventLog` entries to Insights.
